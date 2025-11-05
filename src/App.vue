@@ -20,7 +20,7 @@ const activeId = ref(tabs.value[0].id);
 
 function addTab() {
   const id = generateId();
-  tabs.value.push({ id, title: `Tab ${tabs.value.length+1}`});
+  tabs.value.push({ id, title: `Tab ${tabs.value.length + 1}`});
   activeId.value = id;
 }
 </script>
