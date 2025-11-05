@@ -77,8 +77,16 @@ let isWaitingForCompletion = false;
 let completionBuffer = '';
 let completionTimeout: ReturnType<typeof setTimeout> | null = null;
 
+// Current working directory for path resolution
+const currentWorkingDir = ref('');
+let homeDir = '';
+
 onMounted(async () => {
   if (!outputWrap.value) return;
+
+  // Get home directory from main process
+  homeDir = await window.api.getHomeDir();
+  currentWorkingDir.value = homeDir;
 
   // Create output terminal (read-only)
   outputTerm = new Terminal({
@@ -161,6 +169,9 @@ const handleEnter = () => {
 
   const command = inputValue.value;
 
+  // Track directory changes
+  trackDirectoryChange(command);
+
   // Add to history
   if (command.trim()) {
     commandHistory.value.push(command);
@@ -174,6 +185,34 @@ const handleEnter = () => {
   inputValue.value = '';
   suggestions.value = [];
   selectedSuggestionIndex.value = 0;
+};
+
+// Track directory changes to maintain current working directory
+const trackDirectoryChange = (command: string) => {
+  const trimmed = command.trim();
+
+  if (trimmed.startsWith('cd ')) {
+    const path = trimmed.substring(3).trim();
+
+    if (!path || path === '~') {
+      currentWorkingDir.value = homeDir;
+    } else if (path.startsWith('/')) {
+      currentWorkingDir.value = path;
+    } else if (path.startsWith('~/')) {
+      currentWorkingDir.value = homeDir + path.substring(1);
+    } else if (path === '..') {
+      // Go up one directory
+      const parts = currentWorkingDir.value.split('/').filter(p => p);
+      parts.pop();
+      currentWorkingDir.value = parts.length > 0 ? '/' + parts.join('/') : '/';
+    } else {
+      // Relative path
+      currentWorkingDir.value = currentWorkingDir.value + '/' + path;
+    }
+
+    // Normalize path (remove duplicate slashes, etc.)
+    currentWorkingDir.value = currentWorkingDir.value.replace(/\/+/g, '/');
+  }
 };
 
 // Handle Up arrow - previous command or navigate suggestions
@@ -255,7 +294,7 @@ const getShellCompletions = async (input: string) => {
   const lastWord = words[words.length - 1] || '';
 
   // Generate suggestions based on common commands and patterns
-  const builtInSuggestions = generateSuggestions(lastWord, input);
+  const builtInSuggestions = await generateSuggestions(lastWord, input);
 
   if (builtInSuggestions.length > 0) {
     suggestions.value = builtInSuggestions;
@@ -264,7 +303,7 @@ const getShellCompletions = async (input: string) => {
 };
 
 // Generate suggestions based on input
-const generateSuggestions = (lastWord: string, fullInput: string): string[] => {
+const generateSuggestions = async (lastWord: string, fullInput: string): Promise<string[]> => {
   const commonCommands = [
     'ls', 'cd', 'pwd', 'cat', 'grep', 'find', 'mkdir', 'rm', 'cp', 'mv',
     'echo', 'touch', 'chmod', 'chown', 'ps', 'kill', 'top', 'df', 'du',
@@ -283,30 +322,87 @@ const generateSuggestions = (lastWord: string, fullInput: string): string[] => {
     'npm init', 'npm update', 'npm publish', 'npm uninstall'
   ];
 
+  const words = fullInput.trim().split(/\s+/);
+  const commandName = words[0];
+
   // If at the start (first word), suggest commands
-  if (fullInput.trim().split(/\s+/).length === 1) {
+  if (words.length === 1) {
     return commonCommands
       .filter(cmd => cmd.startsWith(lastWord))
       .slice(0, 10);
   }
 
-  // If starts with 'git ', suggest git commands
-  if (fullInput.startsWith('git ')) {
+  // If starts with 'git ' and only 2 words, suggest git commands
+  if (commandName === 'git' && words.length === 2) {
     return gitCommands
       .filter(cmd => cmd.startsWith(fullInput.trim()))
       .map(cmd => cmd.substring(4).trim())
       .slice(0, 10);
   }
 
-  // If starts with 'npm ', suggest npm commands
-  if (fullInput.startsWith('npm ')) {
+  // If starts with 'npm ' and only 2 words, suggest npm commands
+  if (commandName === 'npm' && words.length === 2) {
     return npmCommands
       .filter(cmd => cmd.startsWith(fullInput.trim()))
       .map(cmd => cmd.substring(4).trim())
       .slice(0, 10);
   }
 
+  // For subsequent words, try path-based autocomplete
+  if (words.length >= 2) {
+    // Commands that typically take file/directory paths
+    const pathCommands = ['cd', 'ls', 'cat', 'rm', 'cp', 'mv', 'mkdir', 'touch', 'chmod', 'chown', 'vim', 'nano', 'code'];
+
+    if (pathCommands.includes(commandName)) {
+      return await getPathSuggestions(lastWord);
+    }
+  }
+
   return [];
+};
+
+// Get path-based suggestions (files/directories)
+const getPathSuggestions = async (partialPath: string): Promise<string[]> => {
+  try {
+    let searchDir = currentWorkingDir.value;
+    let prefix = '';
+
+    // Handle paths with directory separators
+    if (partialPath.includes('/')) {
+      const lastSlash = partialPath.lastIndexOf('/');
+      const dirPart = partialPath.substring(0, lastSlash + 1);
+      prefix = partialPath.substring(lastSlash + 1);
+
+      // Resolve the directory to search
+      if (dirPart.startsWith('/')) {
+        searchDir = dirPart;
+      } else if (dirPart.startsWith('~/')) {
+        searchDir = homeDir + dirPart.substring(1);
+      } else {
+        searchDir = currentWorkingDir.value + '/' + dirPart;
+      }
+    } else {
+      prefix = partialPath;
+    }
+
+    // Read directory contents
+    const entries = await window.api.readDir(searchDir);
+
+    // Filter and format suggestions
+    return entries
+      .filter((entry: { name: string; isDirectory: boolean }) =>
+        entry.name.startsWith(prefix) && !entry.name.startsWith('.')
+      )
+      .map((entry: { name: string; isDirectory: boolean }) => {
+        const name = entry.name;
+        // Add trailing slash for directories
+        return entry.isDirectory ? name + '/' : name;
+      })
+      .slice(0, 15);
+  } catch (error) {
+    console.error('Error getting path suggestions:', error);
+    return [];
+  }
 };
 
 // Process completion buffer from shell

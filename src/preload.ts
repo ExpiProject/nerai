@@ -23,5 +23,7 @@ contextBridge.exposeInMainWorld('api', {
         };
         ipcRenderer.on('pty:exit', relay);
         return () => ipcRenderer.removeListener('pty:exit', relay);
-    }
+    },
+    readDir: (path: string) => ipcRenderer.invoke('fs:readdir', { path }),
+    getHomeDir: () => ipcRenderer.invoke('fs:getHomeDir')
 });

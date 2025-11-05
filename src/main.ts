@@ -1,5 +1,6 @@
 import {app, BrowserWindow, ipcMain, shell} from 'electron';
 import path from 'node:path';
+import os from 'node:os';
 import {spawnPty, resizePty, writePty, killPty} from './pty';
 import started from 'electron-squirrel-startup';
 
@@ -87,3 +88,31 @@ ipcMain.on('pty:resize', (_evt, { id, cols, rows }: { id: string; cols: number; 
 ipcMain.on('pty:kill', (_evt, { id }: { id: string }) => {
     killPty(id);
 });
+
+// IPC — File system operations for autocomplete
+ipcMain.handle('fs:readdir', async (_evt, { path: dirPath }: { path: string }) => {
+    const fs = await import('node:fs/promises');
+    const nodePath = await import('node:path');
+
+    try {
+        // Resolve relative paths from home directory
+        const resolvedPath = dirPath.startsWith('~')
+            ? nodePath.join(process.env.HOME || '', dirPath.slice(1))
+            : nodePath.resolve(dirPath);
+
+        const entries = await fs.readdir(resolvedPath, { withFileTypes: true });
+
+        return entries.map(entry => ({
+            name: entry.name,
+            isDirectory: entry.isDirectory()
+        }));
+    } catch (error) {
+        console.error('Error reading directory:', error);
+        return [];
+    }
+});
+
+ipcMain.handle('fs:getHomeDir', () => {
+    return process.env.HOME || os.homedir();
+});
+
