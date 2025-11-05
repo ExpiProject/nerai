@@ -10,7 +10,6 @@ export default defineConfig({
         '@lydell/node-pty-darwin-x64',
         '@lydell/node-pty-linux-x64',
         '@lydell/node-pty-win32-x64',
-        '@lydell/node-pty-win32-ia32',
       ],
     },
   },
