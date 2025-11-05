@@ -73,7 +73,6 @@ const selectedSuggestionIndex = ref(0);
 
 // Tab completion state
 let isWaitingForCompletion = false;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let completionBuffer = '';
 let completionTimeout: ReturnType<typeof setTimeout> | null = null;
 
