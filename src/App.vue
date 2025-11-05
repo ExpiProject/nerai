@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import Titlebar from './components/Tilebar.vue';
-import TerminalTab from './components/Terminal/TerminalTab.vue';
+import TerminalTabBasic from "./components/Terminal/TerminalTabBasic.vue";
 
 
 interface Tab { id: string; title: string }
@@ -45,7 +45,7 @@ function addTab() {
 
 
     <div class="flex-1 overflow-hidden">
-      <TerminalTab v-for="t in tabs" :key="t.id" v-show="t.id===activeId" :id="t.id"/>
+      <TerminalTabBasic v-for="t in tabs" :key="t.id" v-show="t.id===activeId" :id="t.id"/>
     </div>
   </div>
 </template>
