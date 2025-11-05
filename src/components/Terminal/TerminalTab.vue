@@ -192,21 +192,42 @@ const trackDirectoryChange = (command: string) => {
   const trimmed = command.trim();
 
   if (trimmed.startsWith('cd ')) {
-    const path = trimmed.substring(3).trim();
+    let path = trimmed.substring(3).trim();
+
+    // Remove trailing slash if present
+    if (path.endsWith('/') && path.length > 1) {
+      path = path.slice(0, -1);
+    }
 
     if (!path || path === '~') {
       currentWorkingDir.value = homeDir;
     } else if (path.startsWith('/')) {
+      // Absolute path
       currentWorkingDir.value = path;
     } else if (path.startsWith('~/')) {
+      // Home-relative path
       currentWorkingDir.value = homeDir + path.substring(1);
     } else if (path === '..') {
       // Go up one directory
       const parts = currentWorkingDir.value.split('/').filter(p => p);
       parts.pop();
       currentWorkingDir.value = parts.length > 0 ? '/' + parts.join('/') : '/';
+    } else if (path.includes('../')) {
+      // Handle paths with .. in them (e.g., ../folder or folder/../otherfolder)
+      const parts = currentWorkingDir.value.split('/').filter(p => p);
+      const pathParts = path.split('/');
+
+      for (const part of pathParts) {
+        if (part === '..') {
+          parts.pop();
+        } else if (part && part !== '.') {
+          parts.push(part);
+        }
+      }
+
+      currentWorkingDir.value = parts.length > 0 ? '/' + parts.join('/') : '/';
     } else {
-      // Relative path
+      // Relative path (including nested like Documents/Project/ProjectA)
       currentWorkingDir.value = currentWorkingDir.value + '/' + path;
     }
 
@@ -418,14 +439,26 @@ const processCompletionBuffer = () => {
 // Select a suggestion
 const selectSuggestion = (suggestion: string) => {
   const words = inputValue.value.trim().split(/\s+/);
+  const isDirectory = suggestion.endsWith('/');
 
   if (words.length === 1) {
     // Replace the whole input if it's a single word
-    inputValue.value = suggestion + ' ';
+    // Add space only if it's not a directory (directories need to allow continuation)
+    inputValue.value = suggestion + (isDirectory ? '' : ' ');
   } else {
     // Replace the last word
-    words[words.length - 1] = suggestion;
-    inputValue.value = words.join(' ') + ' ';
+    const lastWord = words[words.length - 1];
+
+    // Check if the last word contains a partial path
+    if (lastWord.includes('/')) {
+      const lastSlash = lastWord.lastIndexOf('/');
+      const pathPrefix = lastWord.substring(0, lastSlash + 1);
+      words[words.length - 1] = pathPrefix + suggestion;
+    } else {
+      words[words.length - 1] = suggestion;
+    }
+
+    inputValue.value = words.join(' ') + (isDirectory ? '' : ' ');
   }
 
   // Clear suggestions
