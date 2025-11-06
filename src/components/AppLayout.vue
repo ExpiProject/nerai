@@ -7,6 +7,7 @@ import InputGroupAddon from 'primevue/inputgroupaddon';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import SelectButton from 'primevue/selectbutton';
+import TabsContainer from "@src/components/Browser/BrowserTabs/TabsContainer.vue";
 
 const value = ref('Tabs');
 const options = ref(['Tabs', 'Notes', 'Files']);
@@ -34,6 +35,7 @@ const options = ref(['Tabs', 'Notes', 'Files']);
             </InputGroup>
             <SelectButton class="h-8 text-xs" size="small" v-model="value" :options="options" fluid />
           </div>
+          <TabsContainer/>
         </div>
       </SplitterPanel>
 
