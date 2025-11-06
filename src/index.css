@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tailwindcss-primeui";
+@custom-variant dark (&:where(.my-app-dark, .my-app-dark *));
 
 @theme {
   --color-panel: #1a1f2e;
