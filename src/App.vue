@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import Titlebar from './components/Tilebar.vue';
 import TerminalTabBasic from "./components/Terminal/TerminalTabBasic.vue";
+import TopSearchBar from "./components/TopSearchBar.vue";
 
 
 interface Tab { id: string; title: string }
@@ -30,22 +31,23 @@ function addTab() {
     <Titlebar />
 
 
-    <div class="px-3 pt-2 flex gap-2 border-b border-white/5 bg-panel">
-      <button
-          v-for="t in tabs"
-          :key="t.id"
-          class="px-3 py-1 rounded-t-xl text-sm"
-          :class="t.id === activeId ? 'bg-bg text-white' : 'text-gray-400 hover:text-white'"
-          @click="activeId = t.id"
-      >
-        {{ t.title }}
-      </button>
-      <button class="ml-auto text-accent" @click="addTab">＋</button>
-    </div>
+<!--    <div class="px-3 pt-2 flex gap-2 border-b border-white/5 bg-panel">-->
+<!--      <button-->
+<!--          v-for="t in tabs"-->
+<!--          :key="t.id"-->
+<!--          class="px-3 py-1 rounded-t-xl text-sm"-->
+<!--          :class="t.id === activeId ? 'bg-bg text-white' : 'text-gray-400 hover:text-white'"-->
+<!--          @click="activeId = t.id"-->
+<!--      >-->
+<!--        {{ t.title }}-->
+<!--      </button>-->
+<!--      <button class="ml-auto text-accent" @click="addTab">＋</button>-->
+<!--    </div>-->
 
 
     <div class="flex-1 overflow-hidden">
-      <TerminalTabBasic v-for="t in tabs" :key="t.id" v-show="t.id===activeId" :id="t.id"/>
+<!--      <TerminalTabBasic v-for="t in tabs" :key="t.id" v-show="t.id===activeId" :id="t.id"/>-->
+      <TopSearchBar/>
     </div>
   </div>
 </template>
